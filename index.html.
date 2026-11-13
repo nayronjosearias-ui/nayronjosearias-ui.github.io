@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aventura matemática — Juego de 500 puntos</title>
+<style>
+:root{--bg:#10131d;--panel:#1b2130;--panel2:#252d40;--ink:#f7f8ff;--muted:#b9c2d6;--yellow:#ffd447;--orange:#ff9b42;--green:#6ee7a5;--red:#ff7777;--line:#3b465e}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 5%,#28334b 0,transparent 35%),linear-gradient(135deg,#10131d,#171d2b);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);padding:22px}
+main{max-width:920px;margin:auto}
+header{text-align:center;padding:16px 10px 22px}
+.mascot{font-size:64px;line-height:1.2;filter:drop-shadow(0 5px 0 #0004)}
+h1{margin:8px 0 5px;font-size:clamp(1.8rem,5vw,2.8rem);color:var(--yellow)}
+.subtitle{color:var(--muted);margin:0}
+.panel{background:linear-gradient(145deg,var(--panel),#171c29);border:1px solid var(--line);border-radius:20px;padding:clamp(16px,3vw,26px);box-shadow:0 15px 35px #0003;margin-bottom:18px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.field{flex:1;min-width:180px}
+label{display:block;color:var(--muted);font-size:.9rem;margin-bottom:7px}
+input,select{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#111725;color:var(--ink);font:inherit}
+button{border:0;border-radius:12px;padding:12px 17px;font:inherit;font-weight:750;cursor:pointer;transition:transform .12s,filter .12s}
+button:hover{filter:brightness(1.08);transform:translateY(-1px)}
+button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.primary{background:var(--yellow);color:#25200d}
+.secondary{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+.good{background:var(--green);color:#10251a}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+.stat{background:#111725;border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}
+.stat small{display:block;color:var(--muted);font-size:.78rem}
+.stat strong{font-size:1.35rem}
+.progress{height:10px;background:#0d1220;border-radius:99px;overflow:hidden;margin:12px 0 20px}
+.progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--yellow),var(--orange));transition:width .2s}
+.question{font-size:clamp(1.6rem,5vw,2.5rem);font-weight:850;text-align:center;margin:22px 0}
+.answer-row{display:flex;gap:10px;max-width:500px;margin:0 auto}
+.answer-row input{text-align:center;font-size:1.25rem}
+.feedback{text-align:center;min-height:30px;font-weight:700;margin:14px 0}
+.muted{color:var(--muted)}
+.hidden{display:none!important}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.92rem}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--yellow)}
+footer{text-align:center;color:var(--muted);font-size:.82rem;padding:8px}
+.pill{display:inline-block;background:#343047;color:#ffe48b;padding:5px 10px;border-radius:99px;font-size:.8rem}
+@media(max-width:560px){body{padding:12px}.stats{gap:7px}.stat{padding:9px 4px}.stat strong{font-size:1.1rem}.answer-row{flex-direction:column}.answer-row button{width:100%}th,td{padding:8px 4px;font-size:.82rem}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="mascot" aria-hidden="true">🐵</div>
+  <h1>¡Aventura matemática!</h1>
+  <p class="subtitle">Un juego de números, retos y mucha curiosidad · ¡Consigue hasta 500 puntos!</p>
+</header>
+
+<section class="panel" id="setup">
+  <div class="row">
+    <div class="field">
+      <label for="player">Nombre del jugador</label>
+      <input id="player" maxlength="18" placeholder="Escribe tu nombre" autocomplete="nickname">
+    </div>
+    <div class="field">
+      <label for="level">Elige tu nivel</label>
+      <select id="level">
+        <option value="easy">Fácil · Sumas y restas</option>
+        <option value="medium">Medio · Multiplicación y división</option>
+        <option value="hard">Difícil · Raíces y operaciones combinadas</option>
+      </select>
+    </div>
+  </div>
+  <div class="row" style="margin-top:16px">
+    <button class="primary" id="start">¡Comenzar aventura!</button>
+    <button class="secondary" id="soundToggle" aria-pressed="true">🔊 Sonido activado</button>
+  </div>
+  <p class="muted" style="margin-bottom:0">Cada partida tiene 20 preguntas. Cada respuesta correcta vale 25 puntos.</p>
+</section>
+
+<section class="panel hidden" id="game">
+  <div class="row" style="justify-content:space-between">
+    <span class="pill" id="levelTag">Nivel fácil</span>
+    <span class="muted" id="playerTag"></span>
+  </div>
+  <div class="stats">
+    <div class="stat"><small>PUNTOS</small><strong id="score">0 / 500</strong></div>
+    <div class="stat"><small>PREGUNTA</small><strong id="count">1 / 20</strong></div>
+    <div class="stat"><small>TIEMPO</small><strong id="timer">00:00</strong></div>
+  </div>
+  <div class="progress"><span id="bar"></span></div>
+  <div class="question" id="question">¿Cuánto es 2 + 2?</div>
+  <div class="answer-row">
+    <input id="answer" type="number" inputmode="numeric" placeholder="Tu respuesta" aria-label="Tu respuesta">
+    <button class="primary" id="check">Comprobar</button>
+  </div>
+  <div class="feedback" id="feedback" aria-live="polite"></div>
+  <div class="row" style="justify-content:center">
+    <button class="secondary hidden" id="next">Siguiente pregunta →</button>
+    <button class="secondary" id="quit">Terminar partida</button>
+  </div>
+</section>
+
+<section class="panel hidden" id="results">
+  <div style="text-align:center">
+    <div style="font-size:54px">🏆</div>
+    <h2 id="resultTitle">¡Aventura completada!</h2>
+    <p id="resultText" class="muted"></p>
+    <div class="stats">
+      <div class="stat"><small>PUNTAJE FINAL</small><strong id="finalScore">0 / 500</strong></div>
+      <div class="stat"><small>TIEMPO</small><strong id="finalTime">00:00</strong></div>
+      <div class="stat"><small>NIVEL</small><strong id="finalLevel">Fácil</strong></div>
+    </div>
+    <button class="primary" id="again">Jugar otra vez</button>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="row" style="justify-content:space-between">
+    <h2 style="margin:0">🥇 Tabla de posiciones</h2>
+    <button class="secondary" id="clearScores" title="Borrar las puntuaciones guardadas">Borrar tabla</button>
+  </div>
+  <p class="muted" style="margin:8px 0">Se guardan en este navegador y dispositivo.</p>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>#</th><th>Jugador</th><th>Puntos</th><th>Tiempo</th><th>Nivel</th></tr></thead>
+      <tbody id="leaderboard"><tr><td colspan="5" class="muted">Aún no hay puntuaciones. ¡Sé el primero!</td></tr></tbody>
+    </table>
+  </div>
+</section>
+<footer>Juego educativo independiente. No es un producto oficial ni utiliza imágenes oficiales de personajes.</footer>
+</main>
+<script>
+(() => {
+ const $ = id => document.getElementById(id);
+ const names = {easy:"Fácil",medium:"Medio",hard:"Difícil"};
+ let soundOn=true, score=0, index=0, questions=[], current=null, startedAt=0, timerId=null, locked=false, playerName="";
+ let audioCtx=null;
+ function beep(freq=600,duration=.12,type="sine"){
+   if(!soundOn) return;
+   try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(.08,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration)}catch(e){}
+ }
+ const rand=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+ function makeQuestion(level){
+   let a,b,op,answer,text;
+   if(level==="easy"){
+     if(Math.random()<.5){a=rand(5,90);b=rand(1,99-a);op="+";answer=a+b}
+     else{a=rand(10,99);b=rand(1,a);op="−";answer=a-b}
+     text=`${a} ${op} ${b} = ?`;
+   }else if(level==="medium"){
+     const kind=rand(0,1);
+     if(kind===0){a=rand(2,12);b=rand(2,12);answer=a*b;text=`${a} × ${b} = ?`}
+     else{b=rand(2,12);answer=rand(2,12);a=b*answer;text=`${a} ÷ ${b} = ?`}
+   }else{
+     const kind=rand(0,3);
+     if(kind===0){answer=rand(2,15);text=`√${answer*answer} = ?`}
+     else if(kind===1){b=rand(2,12);answer=rand(2,12);a=b*answer;text=`${a} ÷ ${b} = ?`}
+     else if(kind===2){a=rand(2,12);b=rand(2,12);let c=rand(1,15);answer=a*b+c;text=`${a} × ${b} + ${c} = ?`}
+     else{a=rand(3,15);b=rand(2,8);let c=rand(1,12);answer=a+b*c;text=`${a} + ${b} × ${c} = ?`}
+   }
+   return {text,answer};
+ }
+ function formatTime(seconds){const m=Math.floor(seconds/60),s=seconds%60;return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
+ function elapsed(){return Math.floor((Date.now()-startedAt)/1000)}
+ function updateTimer(){$("timer").textContent=formatTime(elapsed())}
+ function startGame(){
+   playerName=$("player").value.trim()||"Jugador";
+   const level=$("level").value;
+   score=0;index=0;questions=Array.from({length:20},()=>makeQuestion(level));locked=false;
+   $("setup").classList.add("hidden");$("results").classList.add("hidden");$("game").classList.remove("hidden");
+   $("levelTag").textContent="Nivel "+names[level];$("playerTag").textContent="Jugador: "+playerName;
+   startedAt=Date.now();clearInterval(timerId);timerId=setInterval(updateTimer,500);updateTimer();
+   showQuestion();beep(660,.15);
+ }
+ function showQuestion(){
+   current=questions[index];locked=false;
+   $("question").textContent=current.text;$("count").textContent=`${index+1} / 20`;
+   $("score").textContent=`${score} / 500`;$("bar").style.width=`${index/20*100}%`;
+   $("answer").value="";$("answer").disabled=false;$("check").disabled=false;
+   $("feedback").textContent="";$("next").classList.add("hidden");$("answer").focus();
+ }
+ function checkAnswer(){
+   if(locked)return;
+   const raw=$("answer").value;
+   if(raw.trim()===""){ $("feedback").textContent="Escribe una respuesta primero.";return; }
+   locked=true;const correct=Number(raw)===current.answer;
+   if(correct){score+=25;$("feedback").textContent="¡Correcto! +25 puntos 🎉";$("feedback").style.color="var(--green)";beep(880,.18)}
+   else{$("feedback").textContent=`¡Buen intento! La respuesta era ${current.answer}.`;$("feedback").style.color="var(--orange)";beep(220,.22,"triangle")}
+   $("score").textContent=`${score} / 500`;$("bar").style.width=`${(index+1)/20*100}%`;
+   $("answer").disabled=true;$("check").disabled=true;
+   $("next").classList.add("hidden");
+   $("feedback").textContent += "  La siguiente pregunta aparecerá automáticamente…";
+   setTimeout(() => {
+     if ($("game").classList.contains("hidden")) return;
+     nextQuestion();
+   }, 1100);
+ }
+ function nextQuestion(){index++;if(index>=20)finishGame();else showQuestion()}
+ function getScores(){try{return JSON.parse(localStorage.getItem("mathAdventureScores")||"[]")}catch(e){return []}}
+ function saveScore(entry){
+   const scores=getScores();scores.push(entry);scores.sort((a,b)=>b.score-a.score||a.seconds-b.seconds);
+   try{localStorage.setItem("mathAdventureScores",JSON.stringify(scores.slice(0,30)))}catch(e){}
+   renderScores();
+ }
+ function finishGame(){
+   clearInterval(timerId);updateTimer();const seconds=elapsed(),level=$("level").value;
+   $("game").classList.add("hidden");$("results").classList.remove("hidden");
+   $("finalScore").textContent=`${score} / 500`;$("finalTime").textContent=formatTime(seconds);$("finalLevel").textContent=names[level];
+   $("resultTitle").textContent=score===500?"¡Puntuación perfecta! 🌟":"¡Aventura completada!";
+   $("resultText").textContent=`${playerName}, conseguiste ${score} puntos en 20 preguntas. ¡Sigue practicando!`;
+   saveScore({name:playerName,score,seconds,level:names[level],date:Date.now()});beep(740,.2);setTimeout(()=>beep(990,.25),180);
+ }
+ function renderScores(){
+   const scores=getScores(),body=$("leaderboard");
+   if(!scores.length){body.innerHTML='<tr><td colspan="5" class="muted">Aún no hay puntuaciones. ¡Sé el primero!</td></tr>';return}
+   body.innerHTML=scores.slice(0,10).map((s,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(s.name)}</td><td>${s.score}</td><td>${formatTime(s.seconds)}</td><td>${escapeHtml(s.level)}</td></tr>`).join("");
+ }
+ function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+ $("start").addEventListener("click",startGame);
+ $("check").addEventListener("click",checkAnswer);
+ $("next").addEventListener("click",nextQuestion);
+ $("answer").addEventListener("keydown",e=>{if(e.key==="Enter"){if(locked)nextQuestion();else checkAnswer()}});
+ $("quit").addEventListener("click",finishGame);
+ $("again").addEventListener("click",()=>{$("results").classList.add("hidden");$("setup").classList.remove("hidden")});
+ $("soundToggle").addEventListener("click",()=>{soundOn=!soundOn;$("soundToggle").textContent=soundOn?"🔊 Sonido activado":"🔇 Sonido desactivado";$("soundToggle").setAttribute("aria-pressed",String(soundOn));if(soundOn)beep()});
+ $("clearScores").addEventListener("click",()=>{if(confirm("¿Quieres borrar todas las puntuaciones guardadas en este navegador?")){localStorage.removeItem("mathAdventureScores");renderScores()}});
+ renderScores();
+})();
+</script>
+</body>
+</html>
